@@ -1,9 +1,10 @@
-#include "uart.h"
-#include "gpio.h"
 #include "stm32l476xx.h"
 
-#define SYS_FREQ                (4000000)
-#define GPIOAEN                 (1U << 0)
+#include "uart.h"
+#include "gpio.h"
+#include "common.h"
+
+
 #define USART2EN                (1U << 17)
 #define TE                      (1U << 3)
 #define UE                      (1U << 0)
@@ -12,8 +13,8 @@
 #define TX_PIN                  (2)
 #define RX_PIN                  (3)
 
-#define SR_TXE                  (1U << 7)
-#define SR_RXNE                 (1U << 5)
+#define TXEIE                   (1U << 7)
+#define RXNEIE                  (1U << 5)
 
 void usart2_init(int baud_rate) {
     // enable clock for gpioa
@@ -21,10 +22,10 @@ void usart2_init(int baud_rate) {
 
     // set the usart2 tx and rx pins
     gpio_set_pin_mode(GPIOA, TX_PIN, GPIO_MODE_AF);
-    GPIOA -> AFR[0] |= 7U << 8;
+    GPIOA -> AFR[0] |= (7U << 8);
     
     gpio_set_pin_mode(GPIOA, RX_PIN, GPIO_MODE_AF);
-    GPIOA -> AFR[0] |= 7 << 12;
+    GPIOA -> AFR[0] |= (7 << 12);
 
     // enable clock for uart
     RCC -> APB1ENR1 |= USART2EN;
@@ -57,4 +58,9 @@ char usart2_read() {
     while(!(USART2 -> ISR & SR_RXNE));
 
     return USART2 -> RDR & 0xFF;
+}
+
+void usart2_interrupt_enable() {
+    USART2 -> CR1 |= RXNEIE;
+    NVIC_EnableIRQ(USART2_IRQn);
 }
