@@ -64,3 +64,40 @@ void usart2_interrupt_enable() {
     USART2 -> CR1 |= RXNEIE;
     NVIC_EnableIRQ(USART2_IRQn);
 }
+
+
+
+void dma1_channel7_init(void) {
+    RCC->AHB1ENR |= DMA1EN;
+
+    DMA1_Channel7->CCR &= ~DMA_CCR_EN;
+
+    DMA1->IFCR = DMA_IFCR_CGIF7;
+
+    /* USART2_TX request */
+    DMA1_CSELR->CSELR &= ~(0xF << 24);
+    DMA1_CSELR->CSELR |=  (2U << 24);
+
+    /* Configure channel */
+    DMA1_Channel7->CCR =
+          DMA_CCR_MINC      // memory increment
+        | DMA_CCR_DIR       // mem → periph
+        | DMA_CCR_TCIE;     // transfer complete IRQ
+
+    NVIC_EnableIRQ(DMA1_Channel7_IRQn);
+}
+
+
+static void usart2_dma_send(uint8_t *buf, uint16_t len) {
+    if (len == 0) return;
+
+    DMA1_Channel7->CCR &= ~DMA_CCR_EN;
+    DMA1->IFCR = DMA_IFCR_CGIF7;
+
+    DMA1_Channel7->CMAR  = (uint32_t)buf;
+    DMA1_Channel7->CPAR  = (uint32_t)&USART2->TDR;
+    DMA1_Channel7->CNDTR = len;
+
+    USART2->CR3 |= USART_CR3_DMAT;
+    DMA1_Channel7->CCR |= DMA_CCR_EN;
+}
